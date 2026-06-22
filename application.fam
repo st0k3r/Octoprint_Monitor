@@ -8,7 +8,7 @@ App(
     fap_version=(0, 1),
     fap_category="GPIO",
     fap_description="Monitor an OctoPrint server via WiFi Dev Board",
-    fap_author="bbaker",
+    fap_author="st0k3r",
     fap_weburl="",
     fap_icon="icon.png",
 )
