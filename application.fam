@@ -1,0 +1,14 @@
+App(
+    appid="octoprint_monitor",
+    name="OctoPrint Monitor",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="octoprint_monitor_app",
+    requires=["gui", "storage"],
+    stack_size=4 * 1024,
+    fap_version=(0, 1),
+    fap_category="GPIO",
+    fap_description="Monitor an OctoPrint server via WiFi Dev Board",
+    fap_author="bbaker",
+    fap_weburl="",
+    fap_icon="icon.png",
+)
