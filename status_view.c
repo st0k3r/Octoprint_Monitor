@@ -60,15 +60,19 @@ static void draw_cb(Canvas* canvas, void* model_ptr) {
     }
     canvas_draw_str(canvas, 91, 29, buf);
 
-    /* Temperatures */
+    /* Temperatures — show 0 actual when target is 0 (heater off) */
+    int tool_target = (int)(s->tool_target + 0.5f);
+    int bed_target  = (int)(s->bed_target  + 0.5f);
+    int tool_actual = tool_target == 0 ? 0 : (int)(s->tool_actual + 0.5f);
+    int bed_actual  = bed_target  == 0 ? 0 : (int)(s->bed_actual  + 0.5f);
     snprintf(
         buf,
         sizeof(buf),
         "T:%d/%d  B:%d/%d",
-        (int)(s->tool_actual + 0.5f),
-        (int)(s->tool_target + 0.5f),
-        (int)(s->bed_actual  + 0.5f),
-        (int)(s->bed_target  + 0.5f));
+        tool_actual,
+        tool_target,
+        bed_actual,
+        bed_target);
     canvas_draw_str(canvas, 0, 38, buf);
 
     /* ETA */
