@@ -9,6 +9,7 @@
 #include <storage/storage.h>
 #include <notification/notification_messages.h>
 #include "parse.h"
+#include "uart.h"
 
 #define APP_NAME            "OctoPrint Monitor"
 #define CONFIG_DIR          EXT_PATH("apps_data/octoprint_monitor")
@@ -34,11 +35,12 @@ typedef enum {
 } WorkerEvtFlags;
 #define WORKER_ALL_EVENTS (WorkerEvtStop | WorkerEvtRxDone)
 
-/* View IDs */
+/* View IDs / custom events */
 typedef enum {
-    ViewStatus = 0, /* canvas status display — normal operation */
-    ViewText,       /* text box for config-missing error        */
-    ViewError,      /* popup for runtime errors                 */
+    ViewStatus  = 0, /* canvas status display — normal operation */
+    ViewText,        /* text box for config-missing error        */
+    ViewError,       /* popup for runtime errors                 */
+    ViewRefresh,     /* user pressed OK to re-fetch data         */
 } AppView;
 
 /* App state */
@@ -56,6 +58,7 @@ typedef struct {
 
     /* UART */
     FuriStreamBuffer* rx_stream;
+    UartContext*      uart;
     FuriThread*       worker_thread;
     bool              worker_running;
 

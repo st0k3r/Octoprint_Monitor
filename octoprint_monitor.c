@@ -16,6 +16,8 @@ typedef struct {
     UartContext*  uart;
 } WorkerCtx;
 
+static WorkerCtx s_wctx;
+
 static int32_t worker_thread_func(void* param) {
     WorkerCtx*    wctx = param;
     OctoPrintApp* app  = wctx->app;
@@ -31,6 +33,7 @@ static int32_t worker_thread_func(void* param) {
             app->error_text,
             "ESP32 not responding.\nCheck WiFi Dev Board.",
             sizeof(app->error_text) - 1);
+        app->worker_running = false;
         view_dispatcher_send_custom_event(app->view_dispatcher, ViewError);
         furi_string_free(response);
         return 0;
@@ -63,11 +66,36 @@ static int32_t worker_thread_func(void* param) {
     r = http_get(uart, app->rx_stream, url, response, HTTP_TIMEOUT_MS);
     if(r == HttpResultOk) parse_job_json(furi_string_get_cstr(response), &app->status);
 
-    app->status.loaded = true;
+    app->status.loaded  = true;
+    app->worker_running = false;
     view_dispatcher_send_custom_event(app->view_dispatcher, ViewStatus);
 
     furi_string_free(response);
     return 0;
+}
+
+/* ─── Worker helpers ─────────────────────────────────────────────────────── */
+
+static void start_worker(OctoPrintApp* app) {
+    s_wctx.app = app;
+
+    app->worker_running = true;
+    app->worker_thread  = furi_thread_alloc_ex(
+        "OPMonWorker", 4096, worker_thread_func, &s_wctx);
+
+    app->uart      = uart_alloc(app->rx_stream, furi_thread_get_id(app->worker_thread));
+    s_wctx.uart    = app->uart;
+
+    furi_thread_start(app->worker_thread);
+}
+
+static bool status_input_cb(InputEvent* event, void* ctx) {
+    OctoPrintApp* app = ctx;
+    if(event->key == InputKeyOk && event->type == InputTypeShort) {
+        view_dispatcher_send_custom_event(app->view_dispatcher, ViewRefresh);
+        return true;
+    }
+    return false;
 }
 
 /* ─── Custom event handler ───────────────────────────────────────────────── */
@@ -78,6 +106,24 @@ static bool custom_event_callback(void* ctx, uint32_t event) {
     if(event == ViewStatus) {
         status_view_update(app->status_view, &app->status);
         view_dispatcher_switch_to_view(app->view_dispatcher, ViewStatus);
+        return true;
+    }
+    if(event == ViewRefresh) {
+        if(!app->worker_running) {
+            furi_thread_join(app->worker_thread);
+            furi_thread_free(app->worker_thread);
+            app->worker_thread = NULL;
+
+            uart_free(app->uart);
+            app->uart = NULL;
+
+            app->status.loaded      = false;
+            app->status.progress    = -1.0f;
+            app->status.time_left_s = -1;
+            status_view_update(app->status_view, &app->status);
+
+            start_worker(app);
+        }
         return true;
     }
     if(event == ViewError) {
@@ -120,6 +166,8 @@ view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
     /* Canvas status view (normal operation) */
     app->status_view = status_view_alloc();
     view_set_previous_callback(app->status_view, view_exit_callback);
+    view_set_input_callback(app->status_view, status_input_cb);
+    view_set_context(app->status_view, app);
     view_dispatcher_add_view(app->view_dispatcher, ViewStatus, app->status_view);
 
     /* Text box (config-missing error) */
@@ -185,17 +233,7 @@ int32_t octoprint_monitor_app(void* p) {
     /* Show status view immediately — draw_cb renders "Connecting..." */
     view_dispatcher_switch_to_view(app->view_dispatcher, ViewStatus);
 
-    WorkerCtx* wctx = malloc(sizeof(WorkerCtx));
-    wctx->app = app;
-
-    app->worker_thread = furi_thread_alloc_ex(
-        "OPMonWorker", 4096, worker_thread_func, wctx);
-
-    UartContext* uart = uart_alloc(
-        app->rx_stream, furi_thread_get_id(app->worker_thread));
-    wctx->uart = uart;
-
-    furi_thread_start(app->worker_thread);
+    start_worker(app);
 
     /* Blocks until the user presses Back */
     view_dispatcher_run(app->view_dispatcher);
@@ -204,8 +242,9 @@ int32_t octoprint_monitor_app(void* p) {
     furi_thread_free(app->worker_thread);
     app->worker_thread = NULL;
 
-    uart_free(uart);
-    free(wctx);
+    uart_free(app->uart);
+    app->uart = NULL;
+
     app_free(app);
 
     return 0;

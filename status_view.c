@@ -86,6 +86,11 @@ static void draw_cb(Canvas* canvas, void* model_ptr) {
         canvas_draw_str(canvas, 0, 47, buf);
     }
 
+    /* OK button hint — bottom-left */
+    canvas_draw_circle(canvas, 4, 59, 3);
+    canvas_draw_dot(canvas, 4, 59);
+    canvas_draw_str(canvas, 10, 62, "Refresh");
+
     /* OctoPrint version — bottom-right corner */
     if(s->version[0]) {
         snprintf(buf, sizeof(buf), "v%s", s->version);
