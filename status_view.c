@@ -86,10 +86,13 @@ static void draw_cb(Canvas* canvas, void* model_ptr) {
         canvas_draw_str(canvas, 0, 47, buf);
     }
 
-    /* OK button hint — bottom-left */
-    canvas_draw_circle(canvas, 4, 59, 3);
-    canvas_draw_dot(canvas, 4, 59);
-    canvas_draw_str(canvas, 10, 62, "Refresh");
+    /* OK button hint — bottom-left, badge style */
+    canvas_draw_rbox(canvas, 0, 53, 50, 11, 3);
+    canvas_invert_color(canvas);
+    canvas_draw_circle(canvas, 6, 59, 3);
+    canvas_draw_circle(canvas, 6, 59, 2);
+    canvas_draw_str(canvas, 12, 62, "Refresh");
+    canvas_invert_color(canvas);
 
     /* OctoPrint version — bottom-right corner */
     if(s->version[0]) {
